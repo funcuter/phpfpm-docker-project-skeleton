@@ -1,0 +1,64 @@
+version: "3"
+
+networks:
+  database.net:
+  service.net:
+  ingress.net:
+
+volumes:
+  database.mysql.data:
+  database.redis.data:
+
+services:
+  database.mysql:
+    build: ./database.mysql/build
+    networks:
+      database.net:
+        aliases:
+          - mysql.database
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - ./database.mysql/mysqld.cnf:/etc/mysql/mysql.conf.d/udef-mysqld.cnf:ro
+      - database.mysql.data:/var/lib/mysql:rw
+    ports:
+      - 3306:3306
+
+  database.redis:
+    build: ./database.redis/build
+    networks:
+      database.net:
+        aliases:
+          - redis.database
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - ./database.redis/redis.conf:/etc/redis/conf.d/udef-redis-server.conf:ro
+      - database.redis.data:/var/lib/redis:rw
+    ports:
+      - 6379:6379
+
+  service.phpfpm:
+    build: ./service.phpfpm/build
+    networks:
+      database.net:
+      service.net:
+        aliases:
+          - phpfpm.service
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - ./service.project:/www
+    depends_on:
+      - database.mysql
+      - database.redis
+    
+  ingress.nginx:
+    build: ./service.phpfpm/build
+    networks:
+      service.net:
+      ingress.net:
+        aliases:
+          - nginx.ingress
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - ./service.project:/www
+    depends_on:
+      - service.phpfpm
